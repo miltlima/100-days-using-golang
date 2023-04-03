@@ -6,6 +6,7 @@ import (
     "time"
 	"os"
 	"bufio"
+	"sync"
 )
 
 func checkURL(url string) (int64, error) {
@@ -18,8 +19,19 @@ func checkURL(url string) (int64, error) {
 		return 0, err
 	}
 	defer resp.Body.Close()
-
 	return time.Since(startTime).Nanoseconds(), nil
+}
+
+func processURLs(urls chan string , wg *sync.WaitGroup) {
+	for url := range urls {
+		latency, err := checkURL(url)
+		if err != nil {
+			fmt.Printf("%s is down with error: %v\n", url, err)
+			continue
+		}
+		fmt.Printf("%s is up with latency: d% nanoseconds\n", url, latency)
+	}
+	wg.Done()
 }
 
 func main() {
@@ -30,24 +42,23 @@ func main() {
 	}
 	defer file.Close()
 
+	urls := make(chan string, 10)
 	var wg sync.WaitGroup
+
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go processURLs(urls, &wg)
+	}
 
 	scanner := bufio.NewScanner(file)
     for scanner.Scan() {
-		wg.Add(1)
-		go func(url string) {
-			defer wg.Done()
-			latency, err := checkURL(url)
-			if err != nil {
-				fmt.Printf("%s is down with error: %v\n", url, err)
-				return
-        	}
-        	fmt.Printf("%s is up with latency: %d nanoseconds\n", url, latency)
-    	}(scanner.Text())
+		urls <- scanner.Text()
 	}
-	wg.Wait()
-    if scanner.Err() != nil {
-        fmt.Println(scanner.Err())
-        os.Exit(1)
-    }
+	close(urls)
+
+    wg.Wait()
+	if scanner.Err() != nil {
+		fmt.Println(scanner.Err())
+		os.Exit(1)
+	}
 }
