@@ -1,5 +1,4 @@
 // unary operator
-
 package main
 
 import "fmt"
