@@ -11,3 +11,5 @@ func main() {
 	sumOfNumbers := addNumbers(2, 3)
 	fmt.Print(sumOfNumbers)
 }
+
+// the functions return a error , because add numbers are  int and return a string instead.
